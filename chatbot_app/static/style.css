@@ -1,0 +1,70 @@
+body {
+    font-family: 'Noto Sans JP', sans-serif; /* 日本語フォントを指定 */
+    background-color: #f8f9fa; /* 背景色を薄いグレーに */
+}
+
+.chat-container {
+    width: 500px;
+    margin: 50px auto;
+    border: none; /* ボーダーをなくす */
+    border-radius: 0; /* 角丸をなくす */
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    height: 600px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); /* 薄い影をつける */
+}
+
+.chat-history {
+    flex-grow: 1;
+    padding: 20px;
+    overflow-y: scroll;
+    border-bottom: 1px solid #eee; /* 薄いボーダー */
+}
+
+.chat-input {
+    padding: 15px;
+    display: flex;
+    background-color: #fff; /* インプット背景色を白に */
+}
+
+#user-input {
+    flex-grow: 1;
+    height: 40px;
+    resize: none;
+    border-radius: 5px;
+    border: 1px solid #ccc;
+    padding: 10px;
+    font-size: 16px; /* フォントサイズを少し大きく */
+}
+
+#send-button {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    padding: 10px 15px;
+    cursor: pointer;
+    font-size: 16px; /* フォントサイズを少し大きく */
+}
+
+.user-message, .bot-message {
+    margin-bottom: 15px;
+    padding: 12px 15px;
+    border-radius: 20px; /* メッセージを丸くする */
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); /* メッセージに影をつける */
+}
+
+.user-message {
+    text-align: right;
+    background-color: #e0f7fa; /* ユーザーメッセージの色 */
+    align-self: flex-end;
+    color: #333;
+}
+
+.bot-message {
+    text-align: left;
+    background-color: #f0f0f0; /* ボットメッセージの色 */
+    align-self: flex-start;
+    color: #333;
+}
