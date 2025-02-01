@@ -1,5 +1,4 @@
 病害虫予測プログラムです。<br>
-requirements.txt　
 
 仮想環境を構築したのちに以下のコマンドを実施してください<br>
 python -m venv venv <br>
