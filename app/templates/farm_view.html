@@ -1,0 +1,307 @@
+{% extends "base.html" %}
+
+{% block styles %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
+<style>
+    .farm-container {
+        display: flex;
+        height: calc(100vh - 120px);
+    }
+    
+    .farm-sidebar {
+        width: 320px;
+        background-color: #f9f9f9;
+        padding: 20px;
+        border-right: 1px solid #eee;
+        overflow-y: auto;
+    }
+    
+    .farm-map {
+        flex: 1;
+        position: relative;
+    }
+    
+    #farm-map {
+        width: 100%;
+        height: 100%;
+    }
+    
+    .farm-header {
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 1px solid #eee;
+    }
+    
+    .farm-header h1 {
+        margin: 0 0 10px 0;
+        font-size: 1.8rem;
+    }
+    
+    .farm-coordinates {
+        font-size: 0.9rem;
+        color: #666;
+    }
+    
+    .ndvi-section {
+        margin-top: 30px;
+    }
+    
+    .ndvi-section h2 {
+        margin-bottom: 15px;
+        font-size: 1.4rem;
+    }
+    
+    .ndvi-form {
+        background-color: white;
+        padding: 15px;
+        border-radius: 8px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+    }
+    
+    .form-group {
+        margin-bottom: 15px;
+    }
+    
+    .form-group label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: 500;
+    }
+    
+    .btn-calculate {
+        background-color: #4CAF50;
+        color: white;
+        border: none;
+        padding: 10px 15px;
+        border-radius: 4px;
+        cursor: pointer;
+        width: 100%;
+        font-weight: bold;
+    }
+    
+    .btn-calculate:hover {
+        background-color: #388E3C;
+    }
+    
+    .ndvi-result {
+        margin-top: 20px;
+        display: none;
+    }
+    
+    .result-card {
+        background-color: white;
+        padding: 15px;
+        border-radius: 8px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+    }
+    
+    .result-header {
+        margin-bottom: 15px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid #eee;
+    }
+    
+    .result-header h3 {
+        margin: 0;
+        font-size: 1.2rem;
+    }
+    
+    .result-date {
+        font-size: 0.9rem;
+        color: #666;
+    }
+    
+    .ndvi-values {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 15px;
+    }
+    
+    .ndvi-value {
+        text-align: center;
+    }
+    
+    .value-label {
+        font-size: 0.8rem;
+        color: #666;
+    }
+    
+    .value-number {
+        font-size: 1.4rem;
+        font-weight: bold;
+    }
+    
+    .ndvi-visualization {
+        height: 30px;
+        background: linear-gradient(to right, #d73027, #fc8d59, #fee08b, #a6d96a, #1a9850);
+        border-radius: 4px;
+        margin-bottom: 10px;
+    }
+    
+    .ndvi-scale {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.8rem;
+        color: #666;
+    }
+    
+    .btn-back {
+        display: block;
+        text-align: center;
+        margin-top: 20px;
+        background-color: #f0f0f0;
+        color: #333;
+        text-decoration: none;
+        padding: 10px;
+        border-radius: 4px;
+    }
+    
+    .btn-back:hover {
+        background-color: #e0e0e0;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="farm-container">
+    <div class="farm-sidebar">
+        <div class="farm-header">
+            <h1>{{ farm.name }}</h1>
+            <p class="farm-coordinates">
+                緯度: {{ farm.coordinates.lat }}<br>
+                経度: {{ farm.coordinates.lng }}<br>
+                半径: {{ farm.coordinates.radius }}m
+            </p>
+        </div>
+        
+        <div class="ndvi-section">
+            <h2>NDVI計算</h2>
+            <div class="ndvi-form">
+                <form id="ndvi-form">
+                    <div class="form-group">
+                        <label for="ndvi-date">日付選択</label>
+                        <select id="ndvi-date" name="ndvi-date">
+                            <option value="latest">最新データ</option>
+                            <option value="20230615">2023年6月15日</option>
+                            <option value="20230610">2023年6月10日</option>
+                            <option value="20230605">2023年6月5日</option>
+                        </select>
+                    </div>
+                    
+                    <button type="submit" class="btn-calculate">NDVI計算</button>
+                </form>
+            </div>
+            
+            <div id="ndvi-result" class="ndvi-result">
+                <div class="result-card">
+                    <div class="result-header">
+                        <h3>NDVI計算結果</h3>
+                        <p class="result-date" id="result-date">2023年6月15日</p>
+                    </div>
+                    
+                    <div class="ndvi-values">
+                        <div class="ndvi-value">
+                            <div class="value-label">最小値</div>
+                            <div class="value-number" id="min-ndvi">0.32</div>
+                        </div>
+                        <div class="ndvi-value">
+                            <div class="value-label">平均値</div>
+                            <div class="value-number" id="avg-ndvi">0.65</div>
+                        </div>
+                        <div class="ndvi-value">
+                            <div class="value-label">最大値</div>
+                            <div class="value-number" id="max-ndvi">0.89</div>
+                        </div>
+                    </div>
+                    
+                    <div class="ndvi-visualization"></div>
+                    <div class="ndvi-scale">
+                        <span>0.0</span>
+                        <span>0.2</span>
+                        <span>0.4</span>
+                        <span>0.6</span>
+                        <span>0.8</span>
+                        <span>1.0</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <a href="{{ url_for('main.index') }}" class="btn-back">トップに戻る</a>
+    </div>
+    
+    <div class="farm-map">
+        <div id="farm-map"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // 農場データ
+        const farm = {
+            name: "{{ farm.name }}",
+            lat: {{ farm.coordinates.lat }},
+            lng: {{ farm.coordinates.lng }},
+            radius: {{ farm.coordinates.radius }}
+        };
+        
+        // 地図初期化
+        const map = L.map('farm-map').setView([farm.lat, farm.lng], 13);
+        
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+        
+        // 農場の位置にマーカーを追加
+        const marker = L.marker([farm.lat, farm.lng]).addTo(map);
+        marker.bindPopup(`<b>${farm.name}</b><br>緯度: ${farm.lat}<br>経度: ${farm.lng}`);
+        
+        // 農場の範囲を円で表示
+        const circle = L.circle([farm.lat, farm.lng], {
+            color: '#4CAF50',
+            fillColor: '#4CAF50',
+            fillOpacity: 0.2,
+            radius: farm.radius
+        }).addTo(map);
+        
+        // NDVI計算フォームの送信処理
+        document.getElementById('ndvi-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const date = document.getElementById('ndvi-date').value;
+            
+            // APIリクエストを送信
+            fetch('/farm/{{ farm.id }}/ndvi', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ date: date })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // 結果を表示
+                    const result = data.result;
+                    document.getElementById('result-date').textContent = result.date;
+                    document.getElementById('min-ndvi').textContent = result.min_ndvi.toFixed(2);
+                    document.getElementById('avg-ndvi').textContent = result.average_ndvi.toFixed(2);
+                    document.getElementById('max-ndvi').textContent = result.max_ndvi.toFixed(2);
+                    
+                    // 結果表示エリアを表示
+                    document.getElementById('ndvi-result').style.display = 'block';
+                } else {
+                    alert('エラーが発生しました: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('エラー:', error);
+                alert('計算中にエラーが発生しました');
+            });
+        });
+    });
+</script>
+{% endblock %} 
