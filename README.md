@@ -5,6 +5,9 @@ python -m venv venv <br>
 source venv/bin/activate # macOS, Linux <br>
 venv\Scripts\activate # Windows <br>
 pip install -r backend/requirements.txt <br>
+.envファイルを作成し、その中に <br>
+GOOGLE_API_KEY=""
+を入力してください
 
 **以下がこのプログラムの構成内容です**
 nextfarm/
