@@ -71,7 +71,7 @@
     
     <div class="farm-form">
         <h2>農場を登録</h2>
-        <p>地図上で農場の位置を選択し、情報を入力してください。</p>
+        <p>地図上で農場の4か所の位置を選択し、情報を入力してください。</p>
         
         <form id="farm-register-form">
             <div class="form-group">
@@ -80,28 +80,15 @@
             </div>
             
             <div class="form-group">
-                <label for="farm-lat">緯度</label>
-                <input type="text" id="farm-lat" name="farm-lat" readonly>
+                <label>座標</label>
+                <div id="coordinates-list">
+                    <p>座標を選択してください。</p>
+                </div>
             </div>
             
-            <div class="form-group">
-                <label for="farm-lng">経度</label>
-                <input type="text" id="farm-lng" name="farm-lng" readonly>
-            </div>
-            
-            <div class="form-group">
-                <label for="farm-radius">半径 (m)</label>
-                <input type="number" id="farm-radius" name="farm-radius" value="100" min="10" max="1000">
-            </div>
-            
-            <button type="submit" class="btn-register">農場を登録</button>
-            <a href="{{ url_for('main.index') }}" class="btn-back">戻る</a>
+            <button type="submit" class="btn-register">登録</button>
+            <a href="{{ url_for('main.index') }}" class="btn-back">キャンセル</a>
         </form>
-    </div>
-    
-    <div id="map-instructions" class="map-instructions">
-        <p><i class="fas fa-info-circle"></i> 地図上をクリックして農場の位置を選択してください</p>
-        <button id="hide-instructions" class="hide-button"><i class="fas fa-times"></i></button>
     </div>
 </div>
 {% endblock %}
@@ -118,32 +105,27 @@
         }).addTo(map);
         
         // 選択した位置を示すマーカー
-        let marker = null;
+        let markers = [];
         
         // 地図クリックイベント
         map.on('click', function(e) {
+            if (markers.length >= 4) {
+                alert('4か所の座標を選択済みです。');
+                return;
+            }
+            
             const lat = e.latlng.lat;
             const lng = e.latlng.lng;
             
-            // 入力フィールドに座標を設定
-            document.getElementById('farm-lat').value = lat.toFixed(6);
-            document.getElementById('farm-lng').value = lng.toFixed(6);
+            // マーカーを追加
+            const marker = L.marker([lat, lng]).addTo(map);
+            markers.push(marker);
             
-            // 既存のマーカーがあれば削除
-            if (marker) {
-                map.removeLayer(marker);
-            }
-            
-            // 新しいマーカーを追加
-            marker = L.marker([lat, lng]).addTo(map);
-            
-            // 選択した位置を中心に表示
-            map.setView([lat, lng], 10);
-        });
-        
-        // 操作説明の非表示ボタン
-        document.getElementById('hide-instructions').addEventListener('click', function() {
-            document.getElementById('map-instructions').style.display = 'none';
+            // 座標リストに追加
+            const coordList = document.getElementById('coordinates-list');
+            const coordItem = document.createElement('p');
+            coordItem.textContent = `緯度: ${lat.toFixed(6)}, 経度: ${lng.toFixed(6)}`;
+            coordList.appendChild(coordItem);
         });
         
         // フォーム送信処理
@@ -151,21 +133,21 @@
             e.preventDefault();
             
             const farmName = document.getElementById('farm-name').value;
-            const farmLat = parseFloat(document.getElementById('farm-lat').value);
-            const farmLng = parseFloat(document.getElementById('farm-lng').value);
-            const farmRadius = parseInt(document.getElementById('farm-radius').value);
             
-            if (!farmName || isNaN(farmLat) || isNaN(farmLng)) {
-                alert('農場名と位置を正しく入力してください');
+            if (markers.length !== 4) {
+                alert('4か所の座標を選択してください。');
                 return;
             }
+            
+            const coordinates = markers.map(marker => ({
+                lat: marker.getLatLng().lat,
+                lng: marker.getLatLng().lng
+            }));
             
             // 農場データを作成
             const farmData = {
                 name: farmName,
-                lat: farmLat,
-                lng: farmLng,
-                radius: farmRadius,
+                coordinates: coordinates,
                 created_at: new Date().toISOString()
             };
             

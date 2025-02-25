@@ -25,11 +25,7 @@ def register_farm():
         new_farm = {
             'id': farm_id,
             'name': farm_data.get('name'),
-            'coordinates': {
-                'lat': farm_data.get('lat'),
-                'lng': farm_data.get('lng'),
-                'radius': farm_data.get('radius', 100)  # デフォルト半径100m
-            },
+            'coordinates': farm_data.get('coordinates'),  # 4か所の座標を保存
             'created_at': farm_data.get('created_at')
         }
         
