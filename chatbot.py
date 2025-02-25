@@ -148,20 +148,3 @@ def generate_rag_response(user_input):
     
     # 回答を日本語に翻訳して返す
     return ai_message
-
-@app.route('/')
-def index():
-    """トップページを表示する"""
-    return render_template('index.html')
-
-@app.route('/api/chat', methods=['POST'])
-def chat():
-    """
-    APIエンドポイント：ユーザーからの入力を受け取り、RAG関数で回答を生成して返す。
-    """
-    user_input = request.json['user_input']
-    response = generate_rag_response(user_input) # RAG関数を呼び出す
-    return jsonify({'response': response})
-
-if __name__ == '__main__':
-    app.run(debug=True) # デバッグモードで実行。開発中は便利です。
