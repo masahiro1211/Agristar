@@ -3,6 +3,17 @@ import json
 from datetime import datetime, timedelta
 from flask import current_app
 import random
+import cv2
+import numpy as np
+import matplotlib.pyplot as plt
+from skimage import exposure
+import scipy.ndimage
+import pandas as pd
+from sentinelhub import SHConfig, BBox, CRS, bbox_to_dimensions, SentinelHubRequest, DataCollection, MimeType
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # 暫定的な実装 - 後で実際の衛星データ処理に置き換え
 def get_latest_ndvi_data():
@@ -89,3 +100,155 @@ def is_likely_land(lat, lng):
         return random.random() < 0.3
     else:
         return random.random() < 0.1  # 海の部分はほとんどデータなし
+
+# Sentinel Hubのアクセス情報を設定
+config = SHConfig()
+config.sh_client_id = os.getenv("SH_CLIENT_ID")
+config.sh_client_secret = os.getenv("SH_CLIENT_SECRET")
+config.sh_token_url = "https://identity.dataspace.copernicus.eu/auth/realms/CDSE/protocol/openid-connect/token"
+config.sh_base_url = "https://sh.dataspace.copernicus.eu"
+config.save("cdse")
+
+aoi_coords_wgs84 = (141.05090, 38.437358, 141.090760, 38.468906) # 左上と右下の座標
+resolution = 10  # 解像度10m
+
+# バウンディングボックスを作成
+aoi_bbox = BBox(bbox=aoi_coords_wgs84, crs=CRS.WGS84)
+aoi_size = bbox_to_dimensions(aoi_bbox, resolution=resolution)
+
+# evalscriptの設定（B08: 近赤外, B04: 赤, B03: 緑, B02: 青）
+evalscript_evi = """
+//VERSION=3
+function setup() {
+    return {
+        input: [{
+            bands: ["B08", "B04", "B03", "B02"]
+        }],
+        output: {
+            bands: 4
+        }
+    };
+}
+function evaluatePixel(sample) {
+    return [
+        sample.B08,  // NIR
+        sample.B04,  // Red
+        sample.B03,  // Green
+        sample.B02   // Blue
+    ];
+}
+"""
+
+# SentinelHubRequestの作成
+request_evi = SentinelHubRequest(
+    evalscript=evalscript_evi,
+    input_data=[
+        SentinelHubRequest.input_data(
+            data_collection=DataCollection.SENTINEL2_L2A.define_from(
+                name="s2",
+                service_url="https://sh.dataspace.copernicus.eu"
+            ),
+            time_interval=('2020-08-10', '2020-08-15')
+       )
+    ],
+    responses=[SentinelHubRequest.output_response("default", MimeType.TIFF)],
+    bbox=aoi_bbox,
+    size=aoi_size,
+    config=config
+)
+
+# 画像を取得
+evi_images = request_evi.get_data()
+
+print(f"Returned data is of type = {type(evi_images)} and length {len(evi_images)}.")
+if len(evi_images) > 0:
+    print(f"Single element in the list is of type {type(evi_images[-1])} and has shape {evi_images[-1].shape}")
+
+if not evi_images:
+    raise ValueError("No data returned. Check your date range or bounding box settings.")
+
+# 先頭の画像を取得
+image = evi_images[0]
+print(f"Image type: {image.dtype}, shape: {image.shape}")
+
+if image.shape[2] != 4:
+    raise ValueError(f"Expected 4 bands (B08, B04, B03, B02), but got {image.shape[2]} bands.")
+
+# バンド割り当て
+nir   = image[:, :, 0].astype(float)  # B08 (NIR)
+red   = image[:, :, 1].astype(float)  # B04 (Red)
+green = image[:, :, 2].astype(float)  # B03 (Green)
+blue  = image[:, :, 3].astype(float)  # B02 (Blue)
+
+# NDVIの計算
+ndvi = (nir - red) / (nir + red + 1e-10)
+
+# EVIの計算（B08のNIRを使用）
+scale_factor = 10000.0
+nir_scaled   = image[:, :, 0].astype(float) / scale_factor  # B08 (NIR)
+red_scaled   = image[:, :, 1].astype(float) / scale_factor  # B04 (Red)
+green_scaled = image[:, :, 2].astype(float) / scale_factor  # B03 (Green)
+blue_scaled  = image[:, :, 3].astype(float) / scale_factor  # B02 (Blue)
+
+G  = 2.5  # ゲイン係数
+C1 = 6.0  # 赤バンド補正係数
+C2 = 7.5  # 青バンド補正係数
+L  = 1.0  # 土壌補正係数
+
+evi = G * (nir_scaled - red_scaled) / (nir_scaled + C1 * red_scaled - C2 * blue_scaled + L + 1e-10)
+
+# RGB画像の作成（可視化用：赤: B04, 緑: B03, 青: B02）
+image_rgb = image[:, :, [1, 2, 3]].astype(np.uint8)
+
+# 画像を明るく表示するための関数（元のコードと同じ内容）
+def plot_image(image, factor=1.0, clip_range=(0, 1)):
+    image_float = image.astype(np.float32) * factor
+    image_float = np.clip(image_float, clip_range[0], clip_range[1])
+    plt.figure(figsize=(8, 6))
+    plt.imshow(image_float)
+    plt.axis('off')
+    plt.show()
+
+# FAPARの計算（0～1に収まるようにクリップ）
+fapar = 1.24 * ndvi - 0.168
+fapar_clipped = np.clip(fapar, 0, 1)
+
+# Allplusの計算
+Allplus = fapar_clipped + evi * 40 + ndvi
+
+# 5つのマップを並べて表示するためのサブプロット作成
+fig, axes = plt.subplots(1, 5, figsize=(30, 6))
+
+# 元画像 (image) を明るくして表示（plot_image関数の処理をサブプロット用にインラインで実行）
+bright_image = image_rgb.astype(np.float32) * (3.5 / 255)
+bright_image = np.clip(bright_image, 0, 1)
+axes[0].imshow(bright_image)
+axes[0].set_title("Original Image (B04,B03,B02) (Brightened)")
+axes[0].axis("off")
+
+# NDVIマップの表示
+ndvi_img = axes[1].imshow(ndvi, cmap='RdYlGn')
+axes[1].set_title("NDVI Map")
+axes[1].axis("off")
+plt.colorbar(ndvi_img, ax=axes[1], fraction=0.046, pad=0.04, label="NDVI Value")
+
+# EVIマップの表示
+evi_img = axes[2].imshow(evi, cmap='RdYlGn')
+axes[2].set_title("EVI Map")
+axes[2].axis("off")
+plt.colorbar(evi_img, ax=axes[2], fraction=0.046, pad=0.04, label="EVI Value")
+
+# FAPARマップの表示
+fapar_img = axes[3].imshow(fapar_clipped, cmap='RdYlGn')
+axes[3].set_title("FAPAR Map")
+axes[3].axis("off")
+plt.colorbar(fapar_img, ax=axes[3], fraction=0.046, pad=0.04, label="FAPAR Value (0 - 1)")
+
+# Allplusマップの表示
+allplus_img = axes[4].imshow(Allplus, cmap='RdYlGn')
+axes[4].set_title("Allplus Map")
+axes[4].axis("off")
+plt.colorbar(allplus_img, ax=axes[4], fraction=0.046, pad=0.04, label="Allplus Value")
+
+plt.tight_layout()
+plt.show()
