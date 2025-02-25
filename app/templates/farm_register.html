@@ -1,0 +1,229 @@
+{% extends "base.html" %}
+
+{% block styles %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/map.css') }}">
+<style>
+    .farm-form {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        z-index: 2;
+        width: 320px;
+        background-color: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        padding: 15px;
+    }
+    
+    .form-group {
+        margin-bottom: 15px;
+    }
+    
+    .form-group label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: bold;
+    }
+    
+    .form-group input {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+    }
+    
+    .btn-register {
+        background-color: #4CAF50;
+        color: white;
+        border: none;
+        padding: 10px 15px;
+        border-radius: 4px;
+        cursor: pointer;
+        width: 100%;
+        font-weight: bold;
+    }
+    
+    .btn-register:hover {
+        background-color: #388E3C;
+    }
+    
+    .btn-back {
+        background-color: #f0f0f0;
+        color: #333;
+        border: none;
+        padding: 10px 15px;
+        border-radius: 4px;
+        cursor: pointer;
+        width: 100%;
+        margin-top: 10px;
+    }
+    
+    .btn-back:hover {
+        background-color: #e0e0e0;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="map-container">
+    <div id="map"></div>
+    
+    <div class="farm-form">
+        <h2>農場を登録</h2>
+        <p>地図上で農場の4か所の位置を選択し、情報を入力してください。</p>
+        
+        <form id="farm-register-form">
+            <div class="form-group">
+                <label for="farm-name">農場名</label>
+                <input type="text" id="farm-name" name="farm-name" required>
+            </div>
+            
+            <div class="form-group">
+                <label>座標</label>
+                <div id="coordinates-list">
+                    <p>座標を選択してください。</p>
+                </div>
+            </div>
+            
+            <button type="submit" class="btn-register">登録</button>
+            <a href="{{ url_for('main.index') }}" class="btn-back">キャンセル</a>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // 地図初期化
+        const map = L.map('map').setView([36.2048, 138.2529], 5);
+        
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+        
+        // 選択した位置を示すマーカー
+        let markers = [];
+        let polygon = null;
+        
+        // 地図クリックイベント
+        map.on('click', function(e) {
+            if (markers.length >= 4) {
+                alert('4か所の座標を選択済みです。リセットするには「クリア」ボタンを押してください。');
+                return;
+            }
+            
+            const lat = e.latlng.lat;
+            const lng = e.latlng.lng;
+            
+            // マーカーを追加
+            const marker = L.marker([lat, lng]).addTo(map);
+            markers.push(marker);
+            
+            // 座標リストに追加
+            const coordList = document.getElementById('coordinates-list');
+            const coordItem = document.createElement('p');
+            coordItem.textContent = `緯度: ${lat.toFixed(6)}, 経度: ${lng.toFixed(6)}`;
+            coordList.appendChild(coordItem);
+            
+            // 4点選択したら多角形を描画
+            if (markers.length === 4) {
+                if (polygon) {
+                    map.removeLayer(polygon);
+                }
+                
+                const coords = markers.map(marker => marker.getLatLng());
+                polygon = L.polygon(coords, {
+                    color: '#4CAF50',
+                    fillColor: '#4CAF50',
+                    fillOpacity: 0.2
+                }).addTo(map);
+                
+                // 選択範囲にズーム
+                map.fitBounds(polygon.getBounds());
+            }
+        });
+        
+        // クリアボタンの追加
+        const clearButton = document.createElement('button');
+        clearButton.textContent = 'クリア';
+        clearButton.className = 'btn-clear';
+        clearButton.style.marginTop = '10px';
+        clearButton.style.width = '100%';
+        clearButton.style.padding = '10px';
+        clearButton.style.backgroundColor = '#f44336';
+        clearButton.style.color = 'white';
+        clearButton.style.border = 'none';
+        clearButton.style.borderRadius = '4px';
+        clearButton.style.cursor = 'pointer';
+        
+        document.querySelector('.farm-form form').insertBefore(clearButton, document.querySelector('.btn-register'));
+        
+        // クリアボタンのクリックイベント
+        clearButton.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            // マーカーをクリア
+            markers.forEach(marker => map.removeLayer(marker));
+            markers = [];
+            
+            // 多角形をクリア
+            if (polygon) {
+                map.removeLayer(polygon);
+                polygon = null;
+            }
+            
+            // 座標リストをクリア
+            document.getElementById('coordinates-list').innerHTML = '<p>座標を選択してください。</p>';
+        });
+        
+        // フォーム送信処理
+        document.getElementById('farm-register-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const farmName = document.getElementById('farm-name').value;
+            
+            if (markers.length !== 4) {
+                alert('4か所の座標を選択してください。');
+                return;
+            }
+            
+            const coordinates = markers.map(marker => ({
+                lat: marker.getLatLng().lat,
+                lng: marker.getLatLng().lng
+            }));
+            
+            // 農場データを作成
+            const farmData = {
+                name: farmName,
+                coordinates: coordinates,
+                created_at: new Date().toISOString()
+            };
+            
+            // APIリクエストを送信
+            fetch('/farm/register', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(farmData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('農場が登録されました');
+                    window.location.href = '/';
+                } else {
+                    alert('エラーが発生しました: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('エラー:', error);
+                alert('登録中にエラーが発生しました');
+            });
+        });
+    });
+</script>
+{% endblock %} 
