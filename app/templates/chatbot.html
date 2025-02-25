@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/map.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="chatbot-container">
+    <div class="chatbot-sidebar">
+        <h2>AIアグリアドバイザー</h2>
+        <p>衛星データを分析し、あなたの農場に最適なアドバイスを提供します。</p>
+        
+        <div class="sidebar-section">
+            <h3>サポート内容</h3>
+            <ul>
+                <li>生育状況の分析</li>
+                <li>肥料・農薬のアドバイス</li>
+                <li>病害虫リスク予測</li>
+                <li>収穫適期予測</li>
+                <li>気象データとの連携分析</li>
+            </ul>
+        </div>
+        
+        <div class="sidebar-section">
+            <h3>質問例</h3>
+            <div class="question-examples">
+                <button class="example-button" data-question="現在の生育状況はどうですか？">現在の生育状況は？</button>
+                <button class="example-button" data-question="この時期に必要な肥料はありますか？">必要な肥料は？</button>
+                <button class="example-button" data-question="病害虫リスクは現在どの程度ですか？">病害虫リスクは？</button>
+                <button class="example-button" data-question="収穫の最適なタイミングはいつごろですか？">収穫の最適時期は？</button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="chat-main">
+        <div class="chat-messages" id="chat-messages">
+            <div class="message system-message">
+                <div class="message-content">
+                    <p>こんにちは！NEXTファームのAIアグリアドバイザーです。農場についての質問があればお気軽にどうぞ。</p>
+                </div>
+            </div>
+            <!-- メッセージが動的に追加される -->
+        </div>
+        
+        <div class="chat-input-container">
+            <form id="chat-form">
+                <input type="text" id="chat-input" placeholder="質問を入力してください..." autocomplete="off">
+                <button type="submit" id="send-button">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/chatbot.js') }}"></script>
+{% endblock %}

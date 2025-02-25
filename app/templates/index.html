@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="hero">
+    <div class="hero-content">
+        <h1>NEXTファーム</h1>
+        <p class="subtitle">衛星データで見える、未来の農業</p>
+        <a href="{{ url_for('map.map_view') }}" class="cta-button">生育マップを見る</a>
+    </div>
+</section>
+
+<section class="features">
+    <div class="feature-card">
+        <i class="fas fa-map-marked-alt"></i>
+        <h2>リアルタイム生育モニタリング</h2>
+        <p>衛星データによるNDVI解析で、農場の生育状況をリアルタイムに把握できます。</p>
+    </div>
+    <div class="feature-card">
+        <i class="fas fa-history"></i>
+        <p>過去データとの比較で、作物の生育トレンドを確認できます。</p>
+    </div>
+    <div class="feature-card">
+        <i class="fas fa-robot"></i>
+        <h2>AIアドバイザー</h2>
+        <p>AIが衛星データを分析し、最適な農場管理のアドバイスを提供します。</p>
+    </div>
+</section>
+
+<section class="map-preview">
+    <h2>日本全国の農場をカバー</h2>
+    <div class="map-container">
+        <div id="preview-map"></div>
+        <div class="map-overlay">
+            <p>高精度な衛星データで日本全国の農場をモニタリング</p>
+            <a href="{{ url_for('map.map_view') }}" class="cta-button">詳細マップを見る</a>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<script>
+    // シンプルなプレビューマップの表示
+    document.addEventListener('DOMContentLoaded', function() {
+        const map = L.map('preview-map').setView([36.2048, 138.2529], 5);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+        // 操作を無効化（プレビューのみ）
+        map.dragging.disable();
+        map.touchZoom.disable();
+        map.doubleClickZoom.disable();
+        map.scrollWheelZoom.disable();
+    });
+</script>
+{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
+{% endblock %}
