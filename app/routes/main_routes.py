@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, jsonify, request, redirect, url_for, session
-from app.services.satellite_service import get_latest_ndvi_data, get_ndvi_data_by_date
+from app.services.satellite_service import get_latest_ndvi_data, get_ndvi_data_by_date, validate_farm_area, get_farm_ndvi_image
+from datetime import datetime, timedelta
 
 main = Blueprint('main', __name__)
 
@@ -15,6 +16,11 @@ def register_farm():
         # POSTリクエストから農場データを取得
         farm_data = request.json
         
+        # 農場の座標を検証
+        validation = validate_farm_area(farm_data.get('coordinates'))
+        if not validation['valid']:
+            return jsonify({'success': False, 'error': validation['message']})
+        
         # セッションから既存の農場リストを取得
         farms = session.get('farms', [])
         
@@ -26,6 +32,7 @@ def register_farm():
             'id': farm_id,
             'name': farm_data.get('name'),
             'coordinates': farm_data.get('coordinates'),  # 4か所の座標を保存
+            'bbox': validation['bbox'],  # バウンディングボックスを保存
             'created_at': farm_data.get('created_at')
         }
         
@@ -64,15 +71,36 @@ def calculate_ndvi(farm_id):
     if not farm:
         return jsonify({'success': False, 'error': '農場が見つかりません'})
     
-    # 実際のアプリケーションでは、ここでNDVI計算を行う
-    # 今回はダミーデータを返す
+    # リクエストから日付を取得
+    data = request.json
+    date_str = data.get('date')
+    
+    # 日付が指定されていない場合は最近5日間を使用
+    if date_str:
+        date_obj = datetime.strptime(date_str, '%Y-%m-%d')
+        end_date = date_obj.strftime('%Y-%m-%d')
+        start_date = (date_obj - timedelta(days=5)).strftime('%Y-%m-%d')
+        date_range = (start_date, end_date)
+    else:
+        date_range = None
+    
+    # NDVI画像を取得
+    result = get_farm_ndvi_image(farm['coordinates'], date_range)
+    
+    if not result['success']:
+        return jsonify({'success': False, 'error': result['message']})
+    
+    # 結果を返す
     ndvi_result = {
         'farm_id': farm_id,
         'farm_name': farm['name'],
-        'average_ndvi': 0.65,  # ダミー値
-        'min_ndvi': 0.32,      # ダミー値
-        'max_ndvi': 0.89,      # ダミー値
-        'date': '2023-06-15'   # ダミー値
+        'average_ndvi': result['data']['ndvi_stats']['mean'],
+        'min_ndvi': result['data']['ndvi_stats']['min'],
+        'max_ndvi': result['data']['ndvi_stats']['max'],
+        'median_ndvi': result['data']['ndvi_stats']['median'],
+        'ndvi_image': result['data']['ndvi_image'],
+        'rgb_image': result['data']['rgb_image'],
+        'date': date_str or datetime.now().strftime('%Y-%m-%d')
     }
     
     return jsonify({'success': True, 'result': ndvi_result})

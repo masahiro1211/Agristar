@@ -109,146 +109,369 @@ config.sh_token_url = "https://identity.dataspace.copernicus.eu/auth/realms/CDSE
 config.sh_base_url = "https://sh.dataspace.copernicus.eu"
 config.save("cdse")
 
-aoi_coords_wgs84 = (141.05090, 38.437358, 141.090760, 38.468906) # 左上と右下の座標
-resolution = 10  # 解像度10m
+def create_bbox_and_size(coords, resolution):
+    """
+    バウンディングボックスを作成し、その寸法を計算します。
 
-# バウンディングボックスを作成
-aoi_bbox = BBox(bbox=aoi_coords_wgs84, crs=CRS.WGS84)
-aoi_size = bbox_to_dimensions(aoi_bbox, resolution=resolution)
+    パラメータ:
+    coords (tuple): WGS84形式の座標 (min_lon, min_lat, max_lon, max_lat)。
+    resolution (int): メートル単位の解像度。
 
-# evalscriptの設定（B08: 近赤外, B04: 赤, B03: 緑, B02: 青）
-evalscript_evi = """
-//VERSION=3
-function setup() {
-    return {
-        input: [{
-            bands: ["B08", "B04", "B03", "B02"]
-        }],
-        output: {
-            bands: 4
-        }
-    };
-}
-function evaluatePixel(sample) {
-    return [
-        sample.B08,  // NIR
-        sample.B04,  // Red
-        sample.B03,  // Green
-        sample.B02   // Blue
-    ];
-}
-"""
+    戻り値:
+    tuple: バウンディングボックスとその寸法。
+    """
+    aoi_bbox = BBox(bbox=coords, crs=CRS.WGS84)
+    aoi_size = bbox_to_dimensions(aoi_bbox, resolution=resolution)
 
-# SentinelHubRequestの作成
-request_evi = SentinelHubRequest(
-    evalscript=evalscript_evi,
-    input_data=[
-        SentinelHubRequest.input_data(
-            data_collection=DataCollection.SENTINEL2_L2A.define_from(
-                name="s2",
-                service_url="https://sh.dataspace.copernicus.eu"
-            ),
-            time_interval=('2020-08-10', '2020-08-15')
-       )
-    ],
-    responses=[SentinelHubRequest.output_response("default", MimeType.TIFF)],
-    bbox=aoi_bbox,
-    size=aoi_size,
-    config=config
-)
+    # 最大ピクセル数のチェック
+    max_pixels = 2500
+    if aoi_size[0] > max_pixels or aoi_size[1] > max_pixels:
+        raise ValueError(f"バウンディングボックスの幅または高さが許可されている最大値（{max_pixels}ピクセル）を超えています。")
 
-# 画像を取得
-evi_images = request_evi.get_data()
+    return aoi_bbox, aoi_size
 
-print(f"Returned data is of type = {type(evi_images)} and length {len(evi_images)}.")
-if len(evi_images) > 0:
-    print(f"Single element in the list is of type {type(evi_images[-1])} and has shape {evi_images[-1].shape}")
+def create_evalscript():
+    """
+    SentinelHubRequest用のevalscriptを作成します。
 
-if not evi_images:
-    raise ValueError("No data returned. Check your date range or bounding box settings.")
+    戻り値:
+    str: NIR、Red、Green、Blueバンドを取得するためのevalscript。
+    """
+    return """
+    //VERSION=3
+    function setup() {
+        return {
+            input: [{
+                bands: ["B08", "B04", "B03", "B02"]
+            }],
+            output: {
+                bands: 4
+            }
+        };
+    }
+    function evaluatePixel(sample) {
+        return [
+            sample.B08,  // NIR
+            sample.B04,  // Red
+            sample.B03,  // Green
+            sample.B02   // Blue
+        ];
+    }
+    """
 
-# 先頭の画像を取得
-image = evi_images[0]
-print(f"Image type: {image.dtype}, shape: {image.shape}")
+def create_sentinel_request(aoi_bbox, aoi_size, config):
+    """
+    EVIデータ用のSentinelHubRequestを作成します。
 
-if image.shape[2] != 4:
-    raise ValueError(f"Expected 4 bands (B08, B04, B03, B02), but got {image.shape[2]} bands.")
+    パラメータ:
+    aoi_bbox (BBox): 関心領域のバウンディングボックス。
+    aoi_size (tuple): バウンディングボックスの寸法。
+    config (SHConfig): Sentinel Hubの設定。
 
-# バンド割り当て
-nir   = image[:, :, 0].astype(float)  # B08 (NIR)
-red   = image[:, :, 1].astype(float)  # B04 (Red)
-green = image[:, :, 2].astype(float)  # B03 (Green)
-blue  = image[:, :, 3].astype(float)  # B02 (Blue)
+    戻り値:
+    SentinelHubRequest: Sentinel Hub用に設定されたリクエスト。
+    """
+    evalscript = create_evalscript()
+    return SentinelHubRequest(
+        evalscript=evalscript,
+        input_data=[
+            SentinelHubRequest.input_data(
+                data_collection=DataCollection.SENTINEL2_L2A.define_from(
+                    name="s2",
+                    service_url="https://sh.dataspace.copernicus.eu"
+                ),
+                time_interval=('2020-08-10', '2020-08-15')
+            )
+        ],
+        responses=[SentinelHubRequest.output_response("default", MimeType.TIFF)],
+        bbox=aoi_bbox,
+        size=aoi_size,
+        config=config
+    )
 
-# NDVIの計算
-ndvi = (nir - red) / (nir + red + 1e-10)
+def process_image_data(evi_images):
+    """
+    画像データを処理してNDVI、EVI、FAPAR、Allplusを計算します。
 
-# EVIの計算（B08のNIRを使用）
-scale_factor = 10000.0
-nir_scaled   = image[:, :, 0].astype(float) / scale_factor  # B08 (NIR)
-red_scaled   = image[:, :, 1].astype(float) / scale_factor  # B04 (Red)
-green_scaled = image[:, :, 2].astype(float) / scale_factor  # B03 (Green)
-blue_scaled  = image[:, :, 3].astype(float) / scale_factor  # B02 (Blue)
+    パラメータ:
+    evi_images (list): SentinelHubRequestから返された画像のリスト。
 
-G  = 2.5  # ゲイン係数
-C1 = 6.0  # 赤バンド補正係数
-C2 = 7.5  # 青バンド補正係数
-L  = 1.0  # 土壌補正係数
+    戻り値:
+    tuple: 処理されたNDVI、EVI、FAPAR、Allplus、およびRGB画像。
+    """
+    if not evi_images:
+        raise ValueError("データが返されませんでした。日付範囲またはバウンディングボックスの設定を確認してください。")
 
-evi = G * (nir_scaled - red_scaled) / (nir_scaled + C1 * red_scaled - C2 * blue_scaled + L + 1e-10)
+    image = evi_images[0]
 
-# RGB画像の作成（可視化用：赤: B04, 緑: B03, 青: B02）
-image_rgb = image[:, :, [1, 2, 3]].astype(np.uint8)
+    nir, red, green, blue = [image[:, :, i].astype(float) for i in range(4)]
 
-# 画像を明るく表示するための関数（元のコードと同じ内容）
-def plot_image(image, factor=1.0, clip_range=(0, 1)):
-    image_float = image.astype(np.float32) * factor
-    image_float = np.clip(image_float, clip_range[0], clip_range[1])
-    plt.figure(figsize=(8, 6))
-    plt.imshow(image_float)
-    plt.axis('off')
+    ndvi = (nir - red) / (nir + red + 1e-10)
+
+    scale_factor = 10000.0
+    nir_scaled, red_scaled, green_scaled, blue_scaled = [band / scale_factor for band in (nir, red, green, blue)]
+
+    G, C1, C2, L = 2.5, 6.0, 7.5, 1.0
+    evi = G * (nir_scaled - red_scaled) / (nir_scaled + C1 * red_scaled - C2 * blue_scaled + L + 1e-10)
+
+    fapar = 1.24 * ndvi - 0.168
+    fapar_clipped = np.clip(fapar, 0, 1)
+
+    Allplus = fapar_clipped + evi * 40 + ndvi
+
+    image_rgb = image[:, :, [1, 2, 3]].astype(np.uint8)
+
+    return ndvi, evi, fapar_clipped, Allplus, image_rgb
+
+def plot_maps(ndvi, evi, fapar_clipped, Allplus, image_rgb):
+    """
+    元画像と計算されたマップ（NDVI、EVI、FAPAR、Allplus）をプロットします。
+
+    パラメータ:
+    ndvi (ndarray): NDVIマップ。
+    evi (ndarray): EVIマップ。
+    fapar_clipped (ndarray): FAPARマップ。
+    Allplus (ndarray): Allplusマップ。
+    image_rgb (ndarray): 可視化用のRGB画像。
+    """
+    fig, axes = plt.subplots(1, 5, figsize=(30, 6))
+
+    bright_image = image_rgb.astype(np.float32) * (3.5 / 255)
+    bright_image = np.clip(bright_image, 0, 1)
+    axes[0].imshow(bright_image)
+    axes[0].set_title("Original Image (B04,B03,B02) (Brightened)")
+    axes[0].axis("off")
+
+    ndvi_img = axes[1].imshow(ndvi, cmap='RdYlGn')
+    axes[1].set_title("NDVI Map")
+    axes[1].axis("off")
+    plt.colorbar(ndvi_img, ax=axes[1], fraction=0.046, pad=0.04, label="NDVI Value")
+
+    evi_img = axes[2].imshow(evi, cmap='RdYlGn')
+    axes[2].set_title("EVI Map")
+    axes[2].axis("off")
+    plt.colorbar(evi_img, ax=axes[2], fraction=0.046, pad=0.04, label="EVI Value")
+
+    fapar_img = axes[3].imshow(fapar_clipped, cmap='RdYlGn')
+    axes[3].set_title("FAPAR Map")
+    axes[3].axis("off")
+    plt.colorbar(fapar_img, ax=axes[3], fraction=0.046, pad=0.04, label="FAPAR Value (0 - 1)")
+
+    allplus_img = axes[4].imshow(Allplus, cmap='RdYlGn')
+    axes[4].set_title("Allplus Map")
+    axes[4].axis("off")
+    plt.colorbar(allplus_img, ax=axes[4], fraction=0.046, pad=0.04, label="Allplus Value")
+
+    plt.tight_layout()
     plt.show()
 
-# FAPARの計算（0～1に収まるようにクリップ）
-fapar = 1.24 * ndvi - 0.168
-fapar_clipped = np.clip(fapar, 0, 1)
+def get_farm_bbox(coordinates):
+    """
+    農場の座標から最小のバウンディングボックスを計算します。
+    
+    パラメータ:
+    coordinates (list): 農場の座標リスト [{lat, lng}, ...]
+    
+    戻り値:
+    tuple: WGS84形式の座標 (min_lon, min_lat, max_lon, max_lat)
+    """
+    lats = [coord['lat'] for coord in coordinates]
+    lngs = [coord['lng'] for coord in coordinates]
+    
+    min_lat = min(lats)
+    max_lat = max(lats)
+    min_lng = min(lngs)
+    max_lng = max(lngs)
+    
+    # バウンディングボックスを少し広げる（10%）
+    lat_padding = (max_lat - min_lat) * 0.1
+    lng_padding = (max_lng - min_lng) * 0.1
+    
+    return (
+        min_lng - lng_padding,  # min_lon
+        min_lat - lat_padding,  # min_lat
+        max_lng + lng_padding,  # max_lon
+        max_lat + lat_padding   # max_lat
+    )
 
-# Allplusの計算
-Allplus = fapar_clipped + evi * 40 + ndvi
+def validate_farm_area(coordinates, max_resolution=10):
+    """
+    農場の面積が処理可能かどうかを検証します。
+    
+    パラメータ:
+    coordinates (list): 農場の座標リスト [{lat, lng}, ...]
+    max_resolution (int): 最大解像度（メートル単位）
+    
+    戻り値:
+    dict: 検証結果 {'valid': bool, 'message': str, 'bbox': tuple, 'size': tuple}
+    """
+    try:
+        bbox = get_farm_bbox(coordinates)
+        
+        # バウンディングボックスのサイズを計算
+        try:
+            aoi_bbox, aoi_size = create_bbox_and_size(bbox, max_resolution)
+            
+            # 最大ピクセル数のチェック
+            max_pixels = 2500
+            if aoi_size[0] > max_pixels or aoi_size[1] > max_pixels:
+                return {
+                    'valid': False,
+                    'message': f"選択された農場の面積が大きすぎます。より小さい範囲を選択してください。（最大 {max_pixels}x{max_pixels} ピクセル）",
+                    'bbox': bbox,
+                    'size': aoi_size
+                }
+            
+            return {
+                'valid': True,
+                'message': "農場の面積は処理可能です。",
+                'bbox': bbox,
+                'size': aoi_size
+            }
+        except ValueError as e:
+            return {
+                'valid': False,
+                'message': str(e),
+                'bbox': bbox,
+                'size': None
+            }
+    except Exception as e:
+        return {
+            'valid': False,
+            'message': f"エラーが発生しました: {str(e)}",
+            'bbox': None,
+            'size': None
+        }
 
-# 5つのマップを並べて表示するためのサブプロット作成
-fig, axes = plt.subplots(1, 5, figsize=(30, 6))
+def get_farm_ndvi_image(coordinates, date_range=None):
+    """
+    農場のNDVI画像を取得します。
+    
+    パラメータ:
+    coordinates (list): 農場の座標リスト [{lat, lng}, ...]
+    date_range (tuple): 日付範囲 (start_date, end_date)
+    
+    戻り値:
+    dict: 処理結果
+    """
+    try:
+        # バウンディングボックスを計算
+        bbox = get_farm_bbox(coordinates)
+        
+        # 解像度を設定（メートル単位）
+        resolution = 10
+        
+        # バウンディングボックスとサイズを計算
+        aoi_bbox, aoi_size = create_bbox_and_size(bbox, resolution)
+        
+        # 日付範囲が指定されていない場合は最近5日間を使用
+        if not date_range:
+            end_date = datetime.now().strftime('%Y-%m-%d')
+            start_date = (datetime.now() - timedelta(days=5)).strftime('%Y-%m-%d')
+            date_range = (start_date, end_date)
+        
+        # Sentinel Hubリクエストを作成
+        evalscript = create_evalscript()
+        request = SentinelHubRequest(
+            evalscript=evalscript,
+            input_data=[
+                SentinelHubRequest.input_data(
+                    data_collection=DataCollection.SENTINEL2_L2A.define_from(
+                        name="s2",
+                        service_url="https://sh.dataspace.copernicus.eu"
+                    ),
+                    time_interval=date_range
+                )
+            ],
+            responses=[SentinelHubRequest.output_response("default", MimeType.TIFF)],
+            bbox=aoi_bbox,
+            size=aoi_size,
+            config=config
+        )
+        
+        # データを取得
+        images = request.get_data()
+        
+        if not images:
+            return {
+                'success': False,
+                'message': "指定された日付範囲で利用可能な画像がありません。",
+                'data': None
+            }
+        
+        # 画像データを処理
+        ndvi, evi, fapar, allplus, rgb = process_image_data(images)
+        
+        # NDVIの統計情報を計算
+        ndvi_valid = ndvi[~np.isnan(ndvi)]  # NaN値を除外
+        if len(ndvi_valid) > 0:
+            ndvi_stats = {
+                'min': float(np.nanmin(ndvi)),
+                'max': float(np.nanmax(ndvi)),
+                'mean': float(np.nanmean(ndvi)),
+                'median': float(np.nanmedian(ndvi))
+            }
+        else:
+            ndvi_stats = {
+                'min': 0,
+                'max': 0,
+                'mean': 0,
+                'median': 0
+            }
+        
+        # NDVIデータをBase64エンコード
+        ndvi_normalized = (np.clip(ndvi, -1, 1) + 1) / 2 * 255  # -1〜1の範囲を0〜255に正規化
+        ndvi_img = np.uint8(ndvi_normalized)
+        
+        # カラーマップを適用
+        cmap = plt.get_cmap('RdYlGn')
+        ndvi_colored = cmap(ndvi_img / 255.0) * 255
+        ndvi_colored = ndvi_colored.astype(np.uint8)
+        
+        # 画像をエンコード
+        import io
+        import base64
+        from PIL import Image
+        
+        # NDVI画像
+        ndvi_pil = Image.fromarray(ndvi_colored)
+        ndvi_buffer = io.BytesIO()
+        ndvi_pil.save(ndvi_buffer, format='PNG')
+        ndvi_base64 = base64.b64encode(ndvi_buffer.getvalue()).decode('utf-8')
+        
+        # RGB画像
+        rgb_normalized = np.clip(rgb * 3.5, 0, 255).astype(np.uint8)  # 明るさ調整
+        rgb_pil = Image.fromarray(rgb_normalized)
+        rgb_buffer = io.BytesIO()
+        rgb_pil.save(rgb_buffer, format='PNG')
+        rgb_base64 = base64.b64encode(rgb_buffer.getvalue()).decode('utf-8')
+        
+        return {
+            'success': True,
+            'message': "NDVI画像を取得しました。",
+            'data': {
+                'ndvi_stats': ndvi_stats,
+                'ndvi_image': ndvi_base64,
+                'rgb_image': rgb_base64,
+                'bbox': bbox,
+                'date_range': date_range
+            }
+        }
+    except Exception as e:
+        import traceback
+        return {
+            'success': False,
+            'message': f"エラーが発生しました: {str(e)}",
+            'error_details': traceback.format_exc(),
+            'data': None
+        }
 
-# 元画像 (image) を明るくして表示（plot_image関数の処理をサブプロット用にインラインで実行）
-bright_image = image_rgb.astype(np.float32) * (3.5 / 255)
-bright_image = np.clip(bright_image, 0, 1)
-axes[0].imshow(bright_image)
-axes[0].set_title("Original Image (B04,B03,B02) (Brightened)")
-axes[0].axis("off")
+if __name__ == "__main__":
+    aoi_coords_wgs84 = (141.05090, 38.437358, 151.090760, 45.468906)  # 左上と右下の座標
+    resolution = 10  # 解像度10m
+    aoi_bbox, aoi_size = create_bbox_and_size(aoi_coords_wgs84, resolution)
+    request_evi = create_sentinel_request(aoi_bbox, aoi_size, config)
+    evi_images = request_evi.get_data()
 
-# NDVIマップの表示
-ndvi_img = axes[1].imshow(ndvi, cmap='RdYlGn')
-axes[1].set_title("NDVI Map")
-axes[1].axis("off")
-plt.colorbar(ndvi_img, ax=axes[1], fraction=0.046, pad=0.04, label="NDVI Value")
-
-# EVIマップの表示
-evi_img = axes[2].imshow(evi, cmap='RdYlGn')
-axes[2].set_title("EVI Map")
-axes[2].axis("off")
-plt.colorbar(evi_img, ax=axes[2], fraction=0.046, pad=0.04, label="EVI Value")
-
-# FAPARマップの表示
-fapar_img = axes[3].imshow(fapar_clipped, cmap='RdYlGn')
-axes[3].set_title("FAPAR Map")
-axes[3].axis("off")
-plt.colorbar(fapar_img, ax=axes[3], fraction=0.046, pad=0.04, label="FAPAR Value (0 - 1)")
-
-# Allplusマップの表示
-allplus_img = axes[4].imshow(Allplus, cmap='RdYlGn')
-axes[4].set_title("Allplus Map")
-axes[4].axis("off")
-plt.colorbar(allplus_img, ax=axes[4], fraction=0.046, pad=0.04, label="Allplus Value")
-
-plt.tight_layout()
-plt.show()
+    ndvi, evi, fapar_clipped, Allplus, image_rgb = process_image_data(evi_images)
+    plot_maps(ndvi, evi, fapar_clipped, Allplus, image_rgb)
