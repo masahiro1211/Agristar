@@ -380,7 +380,8 @@ def get_farm_ndvi_image(coordinates, date_range=None):
                         name="s2",
                         service_url="https://sh.dataspace.copernicus.eu"
                     ),
-                    time_interval=date_range
+                    time_interval=date_range,
+                    maxcc=0.2  # クラウドカバー率の最大値（20%以下のデータのみを使用）
                 )
             ],
             responses=[SentinelHubRequest.output_response("default", MimeType.TIFF)],
@@ -413,10 +414,7 @@ def get_farm_ndvi_image(coordinates, date_range=None):
             }
         else:
             ndvi_stats = {
-                'min': 0,
-                'max': 0,
-                'mean': 0,
-                'median': 0
+                'message': "利用可能なデータが存在しません。"
             }
         
         # NDVIデータをBase64エンコード
@@ -454,7 +452,9 @@ def get_farm_ndvi_image(coordinates, date_range=None):
                 'ndvi_image': ndvi_base64,
                 'rgb_image': rgb_base64,
                 'bbox': bbox,
-                'date_range': date_range
+                'date_range': date_range,
+                'start_date': date_range[0] if date_range else datetime.now().strftime('%Y-%m-%d'), # 開始日を追加
+                'end_date': date_range[1] if date_range else datetime.now().strftime('%Y-%m-%d')   # 終了日を追加 (image_date を end_date に変更)
             }
         }
     except Exception as e:
