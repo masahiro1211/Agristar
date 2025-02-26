@@ -8,7 +8,7 @@ main = Blueprint('main', __name__)
 def index():
     # 登録済み農場があるかチェック
     farms = session.get('farms', [])
-    return render_template('index.html', title='NEXTファーム - スマート農業の未来', farms=farms)
+    return render_template('index.html', title='Agristar - スマート農業の未来', farms=farms)
 
 @main.route('/farm/register', methods=['GET', 'POST'])
 def register_farm():
