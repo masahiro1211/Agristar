@@ -3,10 +3,10 @@
 {% block content %}
 <section class="hero">
     <div class="hero-content">
-        <h1>NEXTファーム</h1>
+        <h1>Agristar</h1>
         <p class="subtitle">衛星データで見える、未来の農業</p>
         {% if farms %}
-            <a href="{{ url_for('map.map_view') }}" class="cta-button">生育マップを見る</a>
+            <a href="{{ url_for('map.map_view') }}" class="cta-button">農場マップを見る</a>
         {% else %}
             <a href="{{ url_for('main.register_farm') }}" class="cta-button">農場を登録する</a>
         {% endif %}
@@ -189,9 +189,11 @@
         {% if farms %}
         // 登録済み農場をマップ上に表示
         {% for farm in farms %}
+        {% if farm.coordinates and farm.coordinates.lat and farm.coordinates.lng %}
         L.marker([{{ farm.coordinates.lat }}, {{ farm.coordinates.lng }}])
             .addTo(map)
             .bindPopup("{{ farm.name }}");
+        {% endif %}
         {% endfor %}
         {% endif %}
         
@@ -210,7 +212,7 @@
                     .then(data => {
                         if (data.success) {
                             alert('農場が削除されました');
-                            location.reload();
+                            window.location.href = "/";  // トップページへリダイレクト
                         } else {
                             alert('削除中にエラーが発生しました');
                         }

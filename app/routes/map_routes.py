@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, jsonify, request
+from flask import Blueprint, render_template, jsonify, request ,session
 from app.services.satellite_service import get_latest_ndvi_data, get_ndvi_data_by_date, get_available_dates
 
 map_bp = Blueprint('map', __name__, url_prefix='/map')
@@ -7,7 +7,7 @@ map_bp = Blueprint('map', __name__, url_prefix='/map')
 def map_view():
     # 最新の衛星画像取得日
     latest_date = get_available_dates()[0] if get_available_dates() else "データなし"
-    return render_template('map.html', title='生育状況マップ', latest_date=latest_date)
+    return render_template('map.html', title='農場マップ', latest_date=latest_date)
 
 @map_bp.route('/data/latest')
 def get_latest_data():
@@ -26,3 +26,9 @@ def available_dates():
     # 利用可能な日付リストを返す
     dates = get_available_dates()
     return jsonify(dates)
+
+@map_bp.route('/farms')
+def get_farms_data():
+    """登録された農場データを返す"""
+    farms = session.get('farms', [])
+    return jsonify(farms)

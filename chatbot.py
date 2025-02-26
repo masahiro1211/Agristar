@@ -30,7 +30,7 @@ vector_store = InMemoryVectorStore(embedding_model)
 
 # Load and chunk contents of the blog
 loader = WebBaseLoader(
-    web_paths=("https://utelecon.adm.u-tokyo.ac.jp/en/utokyo_wifi/"
+    web_paths=("https://utelecon.adm.u-tokyo.ac.jp/en/utokyo_wifi/",
                "https://utelecon.adm.u-tokyo.ac.jp/en/oc/",),
     bs_kwargs=dict(
         parse_only=bs4.SoupStrainer(
