@@ -7,6 +7,8 @@ venv\Scripts\activate # Windows <br>
 pip install -r backend/requirements.txt <br>
 .envファイルを作成し、その中に <br>
 GOOGLE_API_KEY="" <br>
+SH_CLIENT_ID="" <br>
+SH_CLIENT_SECRET="" <br>
 を入力してください
 
 **以下がこのプログラムの構成内容です**
@@ -38,9 +40,6 @@ nextfarm/<br>
 │   │   ├── index.html<br>
 │   │   ├── map.html<br>
 │   │   └── chatbot.html<br>
-│   └── utils/
-│       ├── __init__.py
-│       └── helpers.py
 ├── chatbot.py  # 既存のチャットボット実装<br>
 ├── run.py<br>
 └── requirements.txt<br>
