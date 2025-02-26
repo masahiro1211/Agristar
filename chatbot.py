@@ -30,8 +30,7 @@ vector_store = InMemoryVectorStore(embedding_model)
 
 # Load and chunk contents of the blog
 loader = WebBaseLoader(
-    web_paths=("https://utelecon.adm.u-tokyo.ac.jp/en/utokyo_wifi/",
-               "https://utelecon.adm.u-tokyo.ac.jp/en/oc/",),
+    web_paths=("https://www.sciencedirect.com/science/article/abs/pii/S0034425719304717",),
     bs_kwargs=dict(
         parse_only=bs4.SoupStrainer(
             class_=("post-content", "post-title", "post-header")
