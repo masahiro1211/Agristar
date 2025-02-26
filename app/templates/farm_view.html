@@ -204,8 +204,11 @@
                 <button type="submit">解析実行</button>
             </form>
             
-            <div id="ndvi-result">
-                <div class="result-header">解析結果 (<span id="result-date"></span>)</div>
+            <div id="ndvi-result" style="display: none;">
+                <div class="result-header">
+                    <p>NDVI解析結果 (<span id="result-date"></span>)</p >
+                        <p>衛星画像撮影期間: <span id="image-start-date"></span> - <span id="image-end-date"></span></p>  <!-- 画像の撮影期間を表示する要素を追加 -->
+                </div>
                 <div class="result-stats">
                     <div class="stat-item">
                         <div class="stat-label">最小NDVI</div>
@@ -334,7 +337,9 @@
                     else growthStatus = '不良';
                     
                     document.getElementById('growth-status').textContent = growthStatus;
-                    
+                    // 画像の撮影期間を表示
+                    document.getElementById('image-start-date').textContent = result.start_date; // 開始日を表示
+                    document.getElementById('image-end-date').textContent = result.end_date;   // 終了日を表示                  
                     // 結果表示エリアを表示
                     document.getElementById('ndvi-result').style.display = 'block';
                     

@@ -100,7 +100,9 @@ def calculate_ndvi(farm_id):
         'median_ndvi': result['data']['ndvi_stats']['median'],
         'ndvi_image': result['data']['ndvi_image'],
         'rgb_image': result['data']['rgb_image'],
-        'date': date_str or datetime.now().strftime('%Y-%m-%d')
+        'date': date_str or datetime.now().strftime('%Y-%m-%d'),
+        'start_date': result['data']['start_date'], # 開始日を追加
+        'end_date': result['data']['end_date'] 
     }
     
     return jsonify({'success': True, 'result': ndvi_result})

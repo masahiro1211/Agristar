@@ -180,7 +180,8 @@ def create_sentinel_request(aoi_bbox, aoi_size, config):
                     name="s2",
                     service_url="https://sh.dataspace.copernicus.eu"
                 ),
-                time_interval=('2020-08-10', '2020-08-15')
+                time_interval=('2020-01-10', '2020-01-15'),
+                maxcc=0.5
             )
         ],
         responses=[SentinelHubRequest.output_response("default", MimeType.TIFF)],
@@ -188,6 +189,19 @@ def create_sentinel_request(aoi_bbox, aoi_size, config):
         size=aoi_size,
         config=config
     )
+def is_black_image(image, threshold=10):
+    """
+    画像データが黒画像かどうかを判定します。
+
+    パラメータ:
+    image (ndarray): 画像データ (NumPy配列)。
+    threshold (int): 黒と判定する閾値（ピクセル値の最大値）。
+
+    戻り値:
+    bool: 黒画像の場合は True, そうでなければ False。
+    """
+    max_pixel_value = np.max(image)
+    return max_pixel_value <= threshold
 
 def process_image_data(evi_images):
     """
@@ -203,7 +217,9 @@ def process_image_data(evi_images):
         raise ValueError("データが返されませんでした。日付範囲またはバウンディングボックスの設定を確認してください。")
 
     image = evi_images[0]
-
+    # 黒画像チェックを追加
+    if is_black_image(image):
+        raise ValueError("黒画像が返されました。指定された条件では有効なデータがありません。")
     nir, red, green, blue = [image[:, :, i].astype(float) for i in range(4)]
 
     ndvi = (nir - red) / (nir + red + 1e-10)
@@ -380,7 +396,8 @@ def get_farm_ndvi_image(coordinates, date_range=None):
                         name="s2",
                         service_url="https://sh.dataspace.copernicus.eu"
                     ),
-                    time_interval=date_range
+                    time_interval=date_range,
+                    maxcc=0.5  # クラウドカバー率の最大値（20%以下のデータのみを使用）
                 )
             ],
             responses=[SentinelHubRequest.output_response("default", MimeType.TIFF)],
@@ -413,10 +430,7 @@ def get_farm_ndvi_image(coordinates, date_range=None):
             }
         else:
             ndvi_stats = {
-                'min': 0,
-                'max': 0,
-                'mean': 0,
-                'median': 0
+                'message': "利用可能なデータが存在しません。"
             }
         
         # NDVIデータをBase64エンコード
@@ -454,20 +468,25 @@ def get_farm_ndvi_image(coordinates, date_range=None):
                 'ndvi_image': ndvi_base64,
                 'rgb_image': rgb_base64,
                 'bbox': bbox,
-                'date_range': date_range
+                'date_range': date_range,
+                'start_date': date_range[0] if date_range else datetime.now().strftime('%Y-%m-%d'), # 開始日を追加
+                'end_date': date_range[1] if date_range else datetime.now().strftime('%Y-%m-%d')   # 終了日を追加 (image_date を end_date に変更)
             }
         }
     except Exception as e:
         import traceback
+        error_message = f"エラーが発生しました: {str(e)}"
+        if "黒画像が返されました" in str(e): # 黒画像エラーの場合のメッセージを調整
+            error_message = "指定された条件では有効な衛星画像データが見つかりませんでした。雲量や日付の条件を変更してみてください。"
         return {
             'success': False,
-            'message': f"エラーが発生しました: {str(e)}",
+            'message': error_message,
             'error_details': traceback.format_exc(),
             'data': None
         }
 
 if __name__ == "__main__":
-    aoi_coords_wgs84 = (141.05090, 38.437358, 151.090760, 45.468906)  # 左上と右下の座標
+    aoi_coords_wgs84 = (141.05090, 38.437358, 141.090760, 38.468906)  # 左上と右下の座標
     resolution = 10  # 解像度10m
     aoi_bbox, aoi_size = create_bbox_and_size(aoi_coords_wgs84, resolution)
     request_evi = create_sentinel_request(aoi_bbox, aoi_size, config)
