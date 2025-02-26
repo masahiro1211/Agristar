@@ -12,79 +12,10 @@
     <div class="map-controls">
         <div class="control-panel">
             <div class="control-header">
-                <h2>生育状況マップ</h2>
-                <p class="latest-date">最新衛星画像: <span id="current-date">{{ latest_date }}</span></p>
+                <h2>農場マップ</h2>
             </div>
-            
-            <div class="layer-selector">
-                <h3>表示データ</h3>
-                <div class="layer-options">
-                    <label class="layer-option">
-                        <input type="radio" name="layer" value="ndvi" checked>
-                        <span>NDVI (生育指数)</span>
-                    </label>
-                    <label class="layer-option">
-                        <input type="radio" name="layer" value="yield">
-                        <span>収量予測</span>
-                    </label>
-                    <label class="layer-option">
-                        <input type="radio" name="layer" value="fertilizer">
-                        <span>肥料予測</span>
-                    </label>
-                </div>
-            </div>
-            
-            <div class="date-selector">
-                <h3>日付選択</h3>
-                <button id="calendar-toggle" class="calendar-button">
-                    <i class="fas fa-calendar-alt"></i> 過去データを表示
-                </button>
-                <div id="date-picker" class="date-picker hidden">
-                    <div id="available-dates" class="available-dates">
-                        <!-- 利用可能な日付がここに動的に追加される -->
-                    </div>
-                </div>
-            </div>
-            
-            <div class="legend">
-                <h3>凡例 (NDVI値)</h3>
-                <div class="legend-items">
-                    <div class="legend-item">
-                        <div class="color-box" style="background-color: #d73027;"></div>
-                        <div class="legend-text">
-                            <span class="legend-value">0.0-0.2</span>
-                            <span class="legend-label">生育不良</span>
-                        </div>
-                    </div>
-                    <div class="legend-item">
-                        <div class="color-box" style="background-color: #fc8d59;"></div>
-                        <div class="legend-text">
-                            <span class="legend-value">0.2-0.4</span>
-                            <span class="legend-label">生育注意</span>
-                        </div>
-                    </div>
-                    <div class="legend-item">
-                        <div class="color-box" style="background-color: #fee08b;"></div>
-                        <div class="legend-text">
-                            <span class="legend-value">0.4-0.6</span>
-                            <span class="legend-label">生育普通</span>
-                        </div>
-                    </div>
-                    <div class="legend-item">
-                        <div class="color-box" style="background-color: #a6d96a;"></div>
-                        <div class="legend-text">
-                            <span class="legend-value">0.6-0.8</span>
-                            <span class="legend-label">生育良好</span>
-                        </div>
-                    </div>
-                    <div class="legend-item">
-                        <div class="color-box" style="background-color: #1a9850;"></div>
-                        <div class="legend-text">
-                            <span class="legend-value">0.8-1.0</span>
-                            <span class="legend-label">生育最良</span>
-                        </div>
-                    </div>
-                </div>
+            <div class="control-body">
+                <p>登録された農場がピンで表示されます。</p>
             </div>
         </div>
         
@@ -101,9 +32,7 @@
         <button id="hide-instructions" class="hide-button"><i class="fas fa-times"></i></button>
     </div>
 </div>
-{% endblock %}
-
-{% block scripts %}
+{% endblock %}{% block scripts %}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
 <script src="{{ url_for('static', filename='js/map.js') }}"></script>
 {% endblock %}

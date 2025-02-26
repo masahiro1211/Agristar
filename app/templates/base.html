@@ -12,13 +12,13 @@
     <header>
         <div class="logo">
             <a href="{{ url_for('main.index') }}">
-                <img src="{{ url_for('static', filename='images/logo.png') }}" alt="NEXTファーム">
+                <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Agristar">
             </a>
         </div>
         <nav>
             <ul>
                 <li><a href="{{ url_for('main.index') }}">ホーム</a></li>
-                <li><a href="{{ url_for('map.map_view') }}">生育マップ</a></li>
+                <li><a href="{{ url_for('map.map_view') }}">農場マップ</a></li>
                 <li><a href="{{ url_for('chatbot.chatbot_view') }}">AIアドバイザー</a></li>
             </ul>
         </nav>
@@ -30,7 +30,7 @@
 
     <footer>
         <div class="footer-content">
-            <p>&copy; 2025 NEXTファーム - スマート農業の未来</p>
+            <p>&copy; 2025 Agristar - スマート農業の未来</p>
         </div>
     </footer>
 
