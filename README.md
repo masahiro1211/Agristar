@@ -1,5 +1,4 @@
-病害虫予測プログラムです。<br>
-
+**衛星データから画像を読み込み、NDVIや時系列予測を行うアプリケーションです。**<br>
 仮想環境を構築したのちに以下のコマンドを実施してください<br>
 python -m venv venv <br>
 source venv/bin/activate # macOS, Linux <br>
