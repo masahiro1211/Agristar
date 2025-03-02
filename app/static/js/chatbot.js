@@ -51,13 +51,18 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // 天気予報アドバイスを取得
     function getWeatherAdvice(farmId) {
+        // まず質問をUI上に表示
+        const question = '今後の天気予報に基づいたアドバイスを教えてください';
+        addMessage(question, 'user');
+        
+        // 入力中インジケータを表示
         const typingIndicator = addTypingIndicator();
         
+        // その後バックエンドにリクエスト送信
         fetch(`/chatbot/weather?farm_id=${farmId || ''}`)
             .then(response => response.json())
             .then(data => {
                 typingIndicator.remove();
-                addMessage('今後の天気予報に基づいたアドバイスを教えてください', 'user');
                 addMessage(data.advice, 'bot');
                 chatMessages.scrollTop = chatMessages.scrollHeight;
             })
@@ -75,13 +80,18 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
+        // まず質問をUI上に表示
+        const question = `農場ID: ${farmId}の現在の状態分析とアドバイスを教えてください${date ? '（' + date + '）' : ''}`;
+        addMessage(question, 'user');
+        
+        // 入力中インジケータを表示
         const typingIndicator = addTypingIndicator();
         
+        // その後バックエンドにリクエスト送信
         fetch(`/chatbot/farm/${farmId}/advice?date=${date || ''}`)
             .then(response => response.json())
             .then(data => {
                 typingIndicator.remove();
-                addMessage(`農場ID: ${farmId}の現在の状態分析とアドバイスを教えてください${date ? '（' + date + '）' : ''}`, 'user');
                 addMessage(data.advice, 'bot');
                 chatMessages.scrollTop = chatMessages.scrollHeight;
             })
@@ -94,23 +104,25 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // 農作業カレンダーアドバイスを取得
     function getFarmingCalendarAdvice(farmId) {
-        const typingIndicator = addTypingIndicator();
-        
-        // 農場に基づいて作物タイプを取得する質問を送信
-        const message = farmId 
+        // 農場に基づいて作物タイプを取得する質問を作成
+        const question = farmId 
             ? `農場ID: ${farmId}の今月と来月の推奨農作業を教えてください` 
             : '今月と来月の一般的な農作業スケジュールを教えてください';
         
-        addMessage(message, 'user');
+        // まず質問をUI上に表示
+        addMessage(question, 'user');
         
-        // APIリクエストを送信
+        // 入力中インジケータを表示
+        const typingIndicator = addTypingIndicator();
+        
+        // その後バックエンドにリクエスト送信
         fetch('/chatbot/ask', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                question: message,
+                question: question,
                 farm_id: farmId || null
             })
         })

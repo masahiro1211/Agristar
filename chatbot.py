@@ -729,10 +729,34 @@ def generate_rag_response(user_input, farm_id=None, date=None):
                 enhanced_query += f" (日付: {date})"
             enhanced_query += f"\n\n{farm_context}"
         
-        # 簡易的な会話履歴管理
-        # LanggraphのMemorySaverを使う代わりに、直接最新のメッセージだけを扱う
-        initial_messages = [{"role": "user", "content": enhanced_query}]
-        response = graph.invoke({"messages": initial_messages}, config=config)
+        # 会話履歴を使用して応答を生成
+        # thread_idを使って会話の状態を維持
+        thread_id = session.get('thread_id', f"user_{session.get('user_id', 'anonymous')}_{datetime.now().strftime('%Y%m%d%H%M%S')}")
+        session['thread_id'] = thread_id
+        
+        config = {"configurable": {"thread_id": thread_id}}
+        
+        # 新しいメッセージを追加
+        new_message = {"role": "user", "content": enhanced_query}
+        
+        # MemorySaverを使って会話履歴を取得・更新
+        try:
+            # 既存の会話履歴を取得
+            thread_config = {"configurable": {"thread_id": thread_id}}
+            current_state = memory.get(thread_id)
+            
+            if current_state:
+                # 既存の会話履歴に新しいメッセージを追加
+                current_messages = current_state["messages"]
+                current_messages.append(new_message)
+                response = graph.invoke({"messages": current_messages}, config=thread_config)
+            else:
+                # 新しい会話を開始
+                response = graph.invoke({"messages": [new_message]}, config=thread_config)
+        except Exception as e:
+            # 会話履歴の取得に失敗した場合は新しい会話を開始
+            print(f"会話履歴の取得に失敗しました: {str(e)}")
+            response = graph.invoke({"messages": [new_message]}, config=thread_config)
         
         # 最後のAIメッセージを取得
         ai_message = response["messages"][-1].content

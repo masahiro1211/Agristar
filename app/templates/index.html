@@ -21,7 +21,11 @@
             {% for farm in farms %}
             <div class="farm-card">
                 <h3>{{ farm.name }}</h3>
-                <p>緯度: {{ farm.coordinates.lat }}<br>経度: {{ farm.coordinates.lng }}</p>
+                {% if farm.coordinates and farm.coordinates|length > 0 %}
+                    <p>緯度: {{ farm.coordinates[0].lat }}<br>経度: {{ farm.coordinates[0].lng }}</p>
+                {% else %}
+                    <p>座標情報がありません</p>
+                {% endif %}
                 <a href="{{ url_for('main.view_farm', farm_id=farm.id) }}" class="farm-link">詳細を見る</a>
                 <button class="delete-farm-button" data-farm-id="{{ farm.id }}">削除</button>
             </div>
@@ -189,11 +193,11 @@
         {% if farms %}
         // 登録済み農場をマップ上に表示
         {% for farm in farms %}
-        {% if farm.coordinates and farm.coordinates.lat and farm.coordinates.lng %}
-        L.marker([{{ farm.coordinates.lat }}, {{ farm.coordinates.lng }}])
-            .addTo(map)
-            .bindPopup("{{ farm.name }}");
-        {% endif %}
+            {% if farm.coordinates and farm.coordinates|length > 0 %}
+                L.marker([{{ farm.coordinates[0].lat }}, {{ farm.coordinates[0].lng }}])
+                    .addTo(map)
+                    .bindPopup("{{ farm.name }}");
+            {% endif %}
         {% endfor %}
         {% endif %}
         
