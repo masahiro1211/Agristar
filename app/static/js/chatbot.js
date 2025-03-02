@@ -3,6 +3,17 @@ document.addEventListener('DOMContentLoaded', function() {
     const chatInput = document.getElementById('chat-input');
     const chatMessages = document.getElementById('chat-messages');
     const exampleButtons = document.querySelectorAll('.example-button');
+    const farmSelector = document.getElementById('farm-selector');
+    const dateInput = document.getElementById('chat-date');
+    const weatherButton = document.getElementById('weather-button');
+    const ndviButton = document.getElementById('ndvi-button');
+    const farmingCalendarButton = document.getElementById('calendar-button');
+    
+    // 現在の日付をデフォルト値として設定
+    if (dateInput) {
+        const today = new Date();
+        dateInput.value = today.toISOString().split('T')[0];
+    }
     
     // 質問例ボタンのイベントリスナー
     exampleButtons.forEach(button => {
@@ -13,12 +24,119 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
     
+    // 天気予報ボタン
+    if (weatherButton) {
+        weatherButton.addEventListener('click', function() {
+            const farmId = farmSelector ? farmSelector.value : null;
+            getWeatherAdvice(farmId);
+        });
+    }
+    
+    // NDVIデータボタン
+    if (ndviButton) {
+        ndviButton.addEventListener('click', function() {
+            const farmId = farmSelector ? farmSelector.value : null;
+            const date = dateInput ? dateInput.value : null;
+            getNdviAdvice(farmId, date);
+        });
+    }
+    
+    // 農作業カレンダーボタン
+    if (farmingCalendarButton) {
+        farmingCalendarButton.addEventListener('click', function() {
+            const farmId = farmSelector ? farmSelector.value : null;
+            getFarmingCalendarAdvice(farmId);
+        });
+    }
+    
+    // 天気予報アドバイスを取得
+    function getWeatherAdvice(farmId) {
+        const typingIndicator = addTypingIndicator();
+        
+        fetch(`/chatbot/weather?farm_id=${farmId || ''}`)
+            .then(response => response.json())
+            .then(data => {
+                typingIndicator.remove();
+                addMessage('今後の天気予報に基づいたアドバイスを教えてください', 'user');
+                addMessage(data.advice, 'bot');
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            })
+            .catch(error => {
+                console.error('エラー:', error);
+                typingIndicator.remove();
+                addMessage('申し訳ありません。天気データの取得中にエラーが発生しました。', 'bot');
+            });
+    }
+    
+    // NDVIアドバイスを取得
+    function getNdviAdvice(farmId, date) {
+        if (!farmId) {
+            addMessage('農場を選択してください。', 'system');
+            return;
+        }
+        
+        const typingIndicator = addTypingIndicator();
+        
+        fetch(`/chatbot/farm/${farmId}/advice?date=${date || ''}`)
+            .then(response => response.json())
+            .then(data => {
+                typingIndicator.remove();
+                addMessage(`農場ID: ${farmId}の現在の状態分析とアドバイスを教えてください${date ? '（' + date + '）' : ''}`, 'user');
+                addMessage(data.advice, 'bot');
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            })
+            .catch(error => {
+                console.error('エラー:', error);
+                typingIndicator.remove();
+                addMessage('申し訳ありません。NDVIデータの取得中にエラーが発生しました。', 'bot');
+            });
+    }
+    
+    // 農作業カレンダーアドバイスを取得
+    function getFarmingCalendarAdvice(farmId) {
+        const typingIndicator = addTypingIndicator();
+        
+        // 農場に基づいて作物タイプを取得する質問を送信
+        const message = farmId 
+            ? `農場ID: ${farmId}の今月と来月の推奨農作業を教えてください` 
+            : '今月と来月の一般的な農作業スケジュールを教えてください';
+        
+        addMessage(message, 'user');
+        
+        // APIリクエストを送信
+        fetch('/chatbot/ask', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                question: message,
+                farm_id: farmId || null
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            typingIndicator.remove();
+            addMessage(data.response, 'bot');
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        })
+        .catch(error => {
+            console.error('エラー:', error);
+            typingIndicator.remove();
+            addMessage('申し訳ありません。農作業カレンダーの取得中にエラーが発生しました。', 'bot');
+        });
+    }
+    
     // チャットフォームの送信イベント
     chatForm.addEventListener('submit', function(e) {
         e.preventDefault();
         
         const message = chatInput.value.trim();
         if (message === '') return;
+        
+        // 選択された農場ID
+        const farmId = farmSelector ? farmSelector.value : null;
+        const date = dateInput ? dateInput.value : null;
         
         // ユーザーメッセージをUIに追加
         addMessage(message, 'user');
@@ -36,7 +154,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                question: message
+                question: message,
+                farm_id: farmId,
+                date: date
             })
         })
         .then(response => response.json())
@@ -60,7 +180,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // メッセージをチャットUIに追加する関数
     function addMessage(text, sender) {
         const messageDiv = document.createElement('div');
-        messageDiv.className = `message ${sender === 'user' ? 'user-message' : 'bot-message'}`;
+        messageDiv.className = `message ${sender === 'user' ? 'user-message' : (sender === 'system' ? 'system-message' : 'bot-message')}`;
         
         const contentDiv = document.createElement('div');
         contentDiv.className = 'message-content';

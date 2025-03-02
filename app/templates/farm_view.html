@@ -229,6 +229,17 @@
                 </div>
             </div>
         </div>
+        
+        <div class="ndvi-advice-section">
+            <h2>AIアグリアドバイザー</h2>
+            <p>最新のNDVIデータに基づいたアドバイス</p>
+            
+            <div id="ndvi-advice-content">
+                <p>農場データを解析してアドバイスを表示します...</p>
+            </div>
+            
+            <button id="get-advice-button" class="btn-get-advice">詳細アドバイスを取得</button>
+        </div>
     </div>
     
     <div class="farm-map">
@@ -453,6 +464,30 @@
         const today = new Date();
         const dateInput = document.getElementById('ndvi-date');
         dateInput.value = today.toISOString().split('T')[0];
+    });
+    
+    // NDVIアドバイスを取得する関数
+    document.getElementById('get-advice-button').addEventListener('click', function() {
+        const farmId = {{ farm.id }};
+        const date = document.getElementById('ndvi-date').value || new Date().toISOString().split('T')[0];
+        
+        // ローディング表示
+        document.getElementById('ndvi-advice-content').innerHTML = '<p>アドバイスを取得中...</p>';
+        
+        // APIリクエストを送信
+        fetch(`/chatbot/farm/${farmId}/advice?date=${date}`)
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('ndvi-advice-content').innerHTML = `
+                    <div class="advice-content">
+                        <p>${data.advice.replace(/\\n/g, '<br>')}</p>
+                    </div>
+                `;
+            })
+            .catch(error => {
+                console.error('エラー:', error);
+                document.getElementById('ndvi-advice-content').innerHTML = '<p>アドバイスの取得中にエラーが発生しました。</p>';
+            });
     });
 </script>
 {% endblock %}
