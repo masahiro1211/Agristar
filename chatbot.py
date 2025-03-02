@@ -338,7 +338,7 @@ def get_weather_forecast(lat: float = None, lng: float = None):
         
         params = {
             "key": api_key,
-            "q": f"{lat},{lng}",
+            "q": f"{lat},{lng}" if lat and lng else "Tokyo",
             "days": 5,
             "aqi": "yes",
             "alerts": "yes"
@@ -374,13 +374,13 @@ def get_weather_forecast(lat: float = None, lng: float = None):
                     "max_temp_c": day["day"]["maxtemp_c"],
                     "min_temp_c": day["day"]["mintemp_c"],
                     "condition": day["day"]["condition"]["text"],
-                    "humidity": day["day"]["avghumidity"],
-                    "wind_kph": day["day"]["maxwind_kph"],
-                    "precip_mm": day["day"]["totalprecip_mm"],
-                    "chance_of_rain": day["day"]["daily_chance_of_rain"]
+                    "humidity": day["day"].get("avghumidity", 0),  # avghumidityがない場合はデフォルト値を使用
+                    "wind_kph": day["day"].get("maxwind_kph", 0),  # maxwind_kphがない場合はデフォルト値を使用
+                    "precip_mm": day["day"].get("totalprecip_mm", 0),  # totalprecip_mmがない場合はデフォルト値を使用
+                    "chance_of_rain": day["day"].get("daily_chance_of_rain", 0)  # daily_chance_of_rainがない場合はデフォルト値を使用
                 })
             
-            # 農業に関するメモを作成（これは天気データに基づく簡易的な生成）
+            # 農業に関するメモを作成
             rain_days = [i for i, day in enumerate(formatted_data["forecast"]) if day["precip_mm"] > 1.0]
             
             irrigation_needed = "今後5日間は十分な降水が予測されています。" if rain_days else "今後5日間は降水量が少ないため、灌水が必要です。"
@@ -400,10 +400,19 @@ def get_weather_forecast(lat: float = None, lng: float = None):
             
             return formatted_data
         else:
-            return {"error": f"天気データの取得に失敗しました。ステータスコード: {response.status_code}"}
+            # エラーメッセージにレスポンスの内容も含める
+            error_message = f"天気データの取得に失敗しました。ステータスコード: {response.status_code}"
+            try:
+                error_details = response.json()
+                error_message += f", 詳細: {error_details}"
+            except:
+                pass
+            return {"error": error_message}
     
     except Exception as e:
-        return {"error": f"天気予報データの取得中にエラーが発生しました: {str(e)}"}
+        import traceback
+        error_details = traceback.format_exc()
+        return {"error": f"天気予報データの取得中にエラーが発生しました: {str(e)}", "details": error_details}
 
 # 追加ツール：農作業カレンダーを取得するツール
 @tool

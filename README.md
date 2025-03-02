@@ -5,13 +5,17 @@ source venv/bin/activate # macOS, Linux <br>
 venv\Scripts\activate # Windows <br>
 pip install -r backend/requirements.txt <br>
 .envファイルを作成し、その中に <br>
+***geminiapi***<br>
 GOOGLE_API_KEY="" <br>
+***sentinel-hubapi***
 SH_CLIENT_ID="" <br>
 SH_CLIENT_SECRET="" <br>
+***weather.comapi***
+WEATHER_API_KEY=""<br>
 を入力してください
 
 **以下がこのプログラムの構成内容です**
-nextfarm/<br>
+agristar/<br>
 ├── app/<br>
 │   ├── __init__.py<br>
 │   ├── config.py<br>
