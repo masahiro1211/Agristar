@@ -183,6 +183,55 @@
         0% { transform: rotate(0deg); }
         100% { transform: rotate(360deg); }
     }
+    
+    .ndvi-advice-section {
+        margin-top: 30px;
+        background-color: #fff;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    }
+    
+    .ndvi-advice-section h2 {
+        margin-bottom: 10px;
+        font-size: 1.4rem;
+        color: #4CAF50;
+    }
+    
+    .advice-subtitle {
+        color: #666;
+        font-size: 0.9rem;
+        margin-bottom: 15px;
+    }
+    
+    .advice-content-box {
+        background-color: #f9f9f9;
+        border-left: 4px solid #4CAF50;
+        padding: 15px;
+        border-radius: 4px;
+        margin-bottom: 15px;
+        min-height: 100px;
+    }
+    
+    .advice-content {
+        line-height: 1.5;
+    }
+    
+    .advice-button {
+        background-color: #4CAF50;
+        color: white;
+        border: none;
+        padding: 10px 15px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: bold;
+        width: 100%;
+        transition: background-color 0.3s;
+    }
+    
+    .advice-button:hover {
+        background-color: #388E3C;
+    }
 </style>
 {% endblock %}
 
@@ -228,6 +277,17 @@
                     </div>
                 </div>
             </div>
+        </div>
+        
+        <div class="ndvi-advice-section">
+            <h2>AIアグリアドバイザー</h2>
+            <p class="advice-subtitle">最新のNDVIデータに基づいたアドバイス</p>
+            
+            <div id="ndvi-advice-content" class="advice-content-box">
+                <p>農場データを解析してアドバイスを表示します...</p>
+            </div>
+            
+            <button id="get-advice-button" class="advice-button">詳細アドバイスを取得</button>
         </div>
     </div>
     
@@ -453,6 +513,30 @@
         const today = new Date();
         const dateInput = document.getElementById('ndvi-date');
         dateInput.value = today.toISOString().split('T')[0];
+    });
+    
+    // NDVIアドバイスを取得する関数
+    document.getElementById('get-advice-button').addEventListener('click', function() {
+        const farmId = {{ farm.id }};
+        const date = document.getElementById('ndvi-date').value || new Date().toISOString().split('T')[0];
+        
+        // ローディング表示
+        document.getElementById('ndvi-advice-content').innerHTML = '<p>アドバイスを取得中...</p>';
+        
+        // APIリクエストを送信
+        fetch(`/chatbot/farm/${farmId}/advice?date=${date}`)
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('ndvi-advice-content').innerHTML = `
+                    <div class="advice-content">
+                        <p>${data.advice.replace(/\\n/g, '<br>')}</p>
+                    </div>
+                `;
+            })
+            .catch(error => {
+                console.error('エラー:', error);
+                document.getElementById('ndvi-advice-content').innerHTML = '<p>アドバイスの取得中にエラーが発生しました。</p>';
+            });
     });
 </script>
 {% endblock %}

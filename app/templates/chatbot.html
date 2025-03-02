@@ -11,6 +11,36 @@
         <p>衛星データを分析し、あなたの農場に最適なアドバイスを提供します。</p>
         
         <div class="sidebar-section">
+            <h3>農場選択</h3>
+            <select id="farm-selector" class="farm-selector">
+                <option value="">農場を選択してください</option>
+                {% for farm in session.get('farms', []) %}
+                <option value="{{ farm.id }}">{{ farm.name }}</option>
+                {% endfor %}
+            </select>
+            
+            <div class="date-selector">
+                <h4>日付選択</h4>
+                <input type="date" id="chat-date" class="date-input">
+            </div>
+        </div>
+        
+        <div class="sidebar-section">
+            <h3>クイックアクション</h3>
+            <div class="action-buttons">
+                <button id="ndvi-button" class="action-button">
+                    <i class="fas fa-leaf"></i> NDVI分析を見る
+                </button>
+                <button id="weather-button" class="action-button">
+                    <i class="fas fa-cloud-sun"></i> 天気予報を見る
+                </button>
+                <button id="calendar-button" class="action-button">
+                    <i class="fas fa-calendar-alt"></i> 農作業カレンダー
+                </button>
+            </div>
+        </div>
+        
+        <div class="sidebar-section">
             <h3>サポート内容</h3>
             <ul>
                 <li>生育状況の分析</li>
@@ -28,6 +58,7 @@
                 <button class="example-button" data-question="この時期に必要な肥料はありますか？">必要な肥料は？</button>
                 <button class="example-button" data-question="病害虫リスクは現在どの程度ですか？">病害虫リスクは？</button>
                 <button class="example-button" data-question="収穫の最適なタイミングはいつごろですか？">収穫の最適時期は？</button>
+                <button class="example-button" data-question="NDVIデータに基づいて今後の農場管理のアドバイスをください">総合アドバイス</button>
             </div>
         </div>
     </div>
@@ -36,7 +67,7 @@
         <div class="chat-messages" id="chat-messages">
             <div class="message system-message">
                 <div class="message-content">
-                    <p>こんにちは！NEXTファームのAIアグリアドバイザーです。農場についての質問があればお気軽にどうぞ。</p>
+                    <p>こんにちは!AgristarのAIアグリアドバイザーです。農場についての質問があればお気軽にどうぞ。サイドバーから農場を選択すると、その農場に特化したアドバイスを提供できます。</p>
                 </div>
             </div>
             <!-- メッセージが動的に追加される -->
