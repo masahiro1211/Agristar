@@ -1,16 +1,18 @@
-**衛星データから画像を読み込み、NDVIや時系列予測を行うアプリケーションです。**<br>
+**衛星データから画像を読み込み、NDVIを算出したり、時系列予測を行うアプリケーションです。チャットボットに聞くこともできます。**<br>
+
 仮想環境を構築したのちに以下のコマンドを実施してください<br>
 python -m venv venv <br>
 source venv/bin/activate # macOS, Linux <br>
 venv\Scripts\activate # Windows <br>
 pip install -r backend/requirements.txt <br>
+
 .envファイルを作成し、その中に <br>
-***geminiapi***<br>
+***gemini_api***<br>
 GOOGLE_API_KEY="" <br>
-***sentinel-hubapi***
+***sentinel-hub_api***<br>
 SH_CLIENT_ID="" <br>
 SH_CLIENT_SECRET="" <br>
-***weather.comapi***
+***weather.com_api***<br>
 WEATHER_API_KEY=""<br>
 を入力してください
 
